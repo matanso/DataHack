@@ -14,10 +14,11 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 from keras import backend as K
 import pickle
+import datetime
 
 
-batch_size = 256
-nb_epoch = 3
+batch_size = 8192 #1024
+nb_epoch = 20
 
 # input image dimensions
 img_rows, img_cols = 28, 28
@@ -35,6 +36,15 @@ test_df = pd.read_csv(os.path.join(the_dir, 'taxi.test.no.label.csv.gz'), compre
 
 
 
+def conv_weekday(d):
+    d = d.split()[0].split('-')
+    d = datetime.date(int(d[0]), int(d[1]), int(d[2]))
+    return d.weekday()
+
+
+def convert_weekdays(arr):
+    return np.array([conv_weekday(i) for i in arr])
+
 
 def conv_date(d):
     d = d.split()[1].split(':')
@@ -45,13 +55,39 @@ def convert_dates(arr):
     return np.array([conv_date(i) for i in arr])
 
 
+
 def get_x_y(df):
     return np.array([np.array(df['to_latitude']),
                      np.array(df['to_longitude']),
                      np.array(df['from_latitude']),
                      np.array(df['from_longitude']),
                      np.array(df['trip_distance']),
-                     convert_dates(df['from_datetime'])]).transpose(), np.array(df['y'])
+                     convert_dates(df['from_datetime']),
+                     convert_weekdays(df['from_datetime'])]).transpose(), np.array(df['y'])
+
+grid_size = 20
+
+def box(x,y):
+    return (int(x*grid_size), int(y*grid_size))
+
+def path(x1,y1,x2,y2):
+    do_transpose = (abs(x1-x2) < abs(y1-y2))
+    if do_transpose:
+        x1, y1, x2, y2 = y1, x1, y2, x2
+    if x1 > x2:
+        x1, y1, x2, y2 = x2, y2, x1, y1
+
+    grid = np.zeros((grid_size, grid_size))
+    p1 = box(x1,y1)
+    p2 = box(x2,y2)
+
+    for x in range(x1,x2,0.3/grid_size):
+        grid[ box(x, (x-x1)*(y2-y1)/(x2-x1) + y1) ]=1
+
+    if do_transpose:
+        grid=grid.transpose()
+    return grid
+
 
 def ReadData():
     # the data, shuffled and split between train and test sets
@@ -88,55 +124,59 @@ def ReadData():
 
 def TrainModel(X_train, Y_train, X_test, Y_test):
     model = Sequential()
-    model.add(Dense(128, input_shape=X_train.shape[1:]))
+    model.add(Dense(512, input_shape=X_train.shape[1:]))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(512))
     model.add(Activation('relu'))
-    model.add(Dropout(0.25))
+    model.add(Dropout(0.35))
     model.add(Dense(1))
 
     model.compile(loss='mean_squared_error',
-                  optimizer='adadelta',
+                  optimizer='adagrad',
                   metrics=['accuracy'])
 
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
               verbose=1, validation_data=(X_test, Y_test))
-    model.save('models/all_params_10_layers2.hd5')
+    model.save('models/all_params_10_layers_.hd5')
     return model
 
 
 #(X_train, Y_train, X_test, Y_test) = ReadData()
 (X_train, Y_train, X_test, Y_test) = pickle.load(open('data/stuff2.pck', 'r'))
-#X_train, X_test = X_train[:, -2:], X_test[:, -2:]
+
+
+X_train, X_test = X_train[:, -3:], X_test[:, -3:]
+
 
 
 model=TrainModel(X_train, Y_train, X_test, Y_test)
-#model = load_model('models/all_params_10_layers2.hd5')
+#model = load_model('models/all_params_10_layers_.hd5')
 
 #
 #
-x = np.array([np.array([ i/1000., 0.3, 0.4, 0.4, 0.3, 0.4]) for i in range(1000)])
+x = np.array([np.array([ 0.3, i/3000, 0.4,# 0.4, 0.3, 0.4, 0.4
+                          ]) for i in range(1000)])
 y = model.predict(x)
 
-plt.plot(x[:, 0], y, 'ro')
+plt.plot(x[:, 1], y, 'ro')
 plt.show()
 raw_input()
 # model.save('models/all_params_10_layers.hd5')

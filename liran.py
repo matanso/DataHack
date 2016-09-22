@@ -12,7 +12,7 @@ import sklearn.linear_model
 import matplotlib.pyplot as plt
 import os
 
-k = 1
+k = 100
 
 
 def conv_date(d):
@@ -26,8 +26,8 @@ def convert_dates(arr):
 
 # Loading data
 the_dir = '.'
-train_df = pd.read_csv(os.path.join(the_dir, 'data/taxi.train.csv.gz'), nrows=200000, compression='gzip')
-valid_df = pd.read_csv(os.path.join(the_dir, 'data/taxi.valid.csv.gz'), nrows=10000, compression='gzip')
+train_df = pd.read_csv(os.path.join(the_dir, 'data/taxi.train.csv.gz'), nrows=2000000, compression='gzip')
+valid_df = pd.read_csv(os.path.join(the_dir, 'data/taxi.valid.csv.gz'), nrows=1000000, compression='gzip')
 
 # Cleaning data
 train_df = train_df[(train_df['from_longitude'] <= -73.7)]
@@ -75,8 +75,8 @@ for label in range(k):
 
     #regressors[label] = np.random.choice(models)
     #print regressors[label]
-    regressors[label] = sklearn.ensemble.RandomForestRegressor(n_estimators=100)
-    # regressors[label] = sklearn.linear_model.LinearRegression()
+    #regressors[label] = sklearn.ensemble.RandomForestRegressor(n_estimators=100)
+    regressors[label] = sklearn.ensemble.AdaBoostRegressor()
     regressors[label].fit(X_train, y_train)
 
 # predicting stuff
